@@ -1,0 +1,9 @@
+apiVersion: apps.myapp.io/v1
+kind: SimpleApp
+metadata:
+  labels:
+    app.kubernetes.io/name: simple-app-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: simpleapp-sample
+spec:
+  # TODO(user): Add fields here
