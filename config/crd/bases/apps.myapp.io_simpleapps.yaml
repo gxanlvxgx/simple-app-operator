@@ -88,8 +88,7 @@ spec:
                 format: int32
                 type: integer
               serviceStatus:
-                description: ServiceStatus reports the general health (e.g., "Created",
-                  "Pending")
+                description: ServiceStatus reports the general health
                 type: string
             required:
             - readyReplicas

@@ -1,0 +1,9 @@
+apiVersion: apps.myapp.io/v1
+kind: SimpleApp
+metadata:
+  name: my-web-server
+spec:
+  image: nginx:latest       
+  replicas: 2               
+  containerPort: 80         # Porta interna
+  servicePort: 8080         # Porta esterna
