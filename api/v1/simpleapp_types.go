@@ -47,7 +47,7 @@ type SimpleAppStatus struct {
 	// ReadyReplicas tells us how many pods are actually running
 	ReadyReplicas int32 `json:"readyReplicas"`
 
-	// ServiceStatus reports the general health (e.g., "Created", "Pending")
+	// ServiceStatus reports the general health
 	ServiceStatus string `json:"serviceStatus,omitempty"`
 }
 
