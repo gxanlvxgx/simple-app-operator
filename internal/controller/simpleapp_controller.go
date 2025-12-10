@@ -44,7 +44,8 @@ type SimpleAppReconciler struct {
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 
-// Reconcile Loop
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
 func (r *SimpleAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
@@ -54,19 +55,19 @@ func (r *SimpleAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// 2. Check/Create Deployment
+	// 2. Ensure the Deployment exists and matches the desired state
 	deployment, err := r.ensureDeployment(ctx, &simpleApp)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// 3. Check/Create Service
+	// 3. Ensure the Service exists and matches the desired state
 	_, err = r.ensureService(ctx, &simpleApp)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// 4. Update Status
+	// 4. Update CR Status with the current state of the Deployment
 	if simpleApp.Status.ReadyReplicas != deployment.Status.ReadyReplicas {
 		simpleApp.Status.ReadyReplicas = deployment.Status.ReadyReplicas
 		if err := r.Status().Update(ctx, &simpleApp); err != nil {
@@ -80,7 +81,7 @@ func (r *SimpleAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 // ensureDeployment creates or updates the Deployment based on the CR specs.
 func (r *SimpleAppReconciler) ensureDeployment(ctx context.Context, cr *appsv1alpha1.SimpleApp) (*appsv1.Deployment, error) {
-	// DYNAMIC: We get replicas from the YAML
+	// Dynamic: Retrieve the desired replica count from the Custom Resource
 	desiredReplicas := cr.Spec.Replicas
 
 	dep := &appsv1.Deployment{
@@ -100,11 +101,11 @@ func (r *SimpleAppReconciler) ensureDeployment(ctx context.Context, cr *appsv1al
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name: "app",
-						// DYNAMIC: Here is the magic! We use the variable instead of a hardcoded string
+						// Dynamic: The user defines the image in the YAML
 						Image:           cr.Spec.Image,
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						Ports: []corev1.ContainerPort{{
-							// DYNAMIC: We use the port defined by the user
+							// Dynamic: The user defines the container port
 							ContainerPort: cr.Spec.ContainerPort,
 						}},
 					}},
@@ -113,30 +114,31 @@ func (r *SimpleAppReconciler) ensureDeployment(ctx context.Context, cr *appsv1al
 		},
 	}
 
-	// Set ControllerReference
+	// Set ControllerReference to ensure the Deployment is deleted when the CR is deleted
 	if err := ctrl.SetControllerReference(cr, dep, r.Scheme); err != nil {
 		return nil, err
 	}
 
-	// Check if exists
+	// Check if the Deployment already exists
 	var existing appsv1.Deployment
 	err := r.Get(ctx, client.ObjectKey{Name: dep.Name, Namespace: dep.Namespace}, &existing)
 	if err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			return nil, err
 		}
-		// Create
+		// Create the Deployment if it doesn't exist
 		if err := r.Create(ctx, dep); err != nil {
 			return nil, err
 		}
 		return dep, nil
 	}
 
-	// Update Logic (simplified)
+	// Update Logic: Check if critical fields (Image, Replicas) have changed
 	needsUpdate := false
 	if *existing.Spec.Replicas != *dep.Spec.Replicas {
 		needsUpdate = true
 	}
+	// Simplified check: compare image of the first container
 	if existing.Spec.Template.Spec.Containers[0].Image != dep.Spec.Template.Spec.Containers[0].Image {
 		needsUpdate = true
 	}
@@ -152,7 +154,7 @@ func (r *SimpleAppReconciler) ensureDeployment(ctx context.Context, cr *appsv1al
 	return &existing, nil
 }
 
-// ensureService creates or updates the Service
+// ensureService creates or updates the Service to expose the application.
 func (r *SimpleAppReconciler) ensureService(ctx context.Context, cr *appsv1alpha1.SimpleApp) (*corev1.Service, error) {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -162,28 +164,41 @@ func (r *SimpleAppReconciler) ensureService(ctx context.Context, cr *appsv1alpha
 		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{"app": cr.Name},
 			Ports: []corev1.ServicePort{{
-				// DYNAMIC: Mapping user ports to service ports
-				Port:       cr.Spec.ServicePort,
+				// Dynamic: Exposed Service Port
+				Port: cr.Spec.ServicePort,
+				// Dynamic: Target Container Port
 				TargetPort: intstr.FromInt(int(cr.Spec.ContainerPort)),
 			}},
 			Type: corev1.ServiceTypeClusterIP,
 		},
 	}
 
+	// Set ControllerReference
 	if err := ctrl.SetControllerReference(cr, svc, r.Scheme); err != nil {
 		return nil, err
 	}
 
+	// Check if the Service already exists
 	var existing corev1.Service
 	err := r.Get(ctx, client.ObjectKey{Name: svc.Name, Namespace: svc.Namespace}, &existing)
 	if err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			return nil, err
 		}
+		// Create the Service if it doesn't exist
 		if err := r.Create(ctx, svc); err != nil {
 			return nil, err
 		}
 		return svc, nil
+	}
+
+	// Update Logic: Check if ports changed
+	if existing.Spec.Ports[0].Port != svc.Spec.Ports[0].Port ||
+		existing.Spec.Ports[0].TargetPort != svc.Spec.Ports[0].TargetPort {
+		existing.Spec.Ports = svc.Spec.Ports
+		if err := r.Update(ctx, &existing); err != nil {
+			return nil, err
+		}
 	}
 
 	return &existing, nil
