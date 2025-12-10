@@ -8,70 +8,136 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
 )
 
+// PageData holds the data to be rendered in the HTML template
 type PageData struct {
 	Message string
 	Output  string
 	Error   bool
 }
 
+// openBrowser attempts to open the default browser based on the OS
+func openBrowser(url string) {
+	var err error
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+		if err != nil {
+			err = exec.Command("cmd.exe", "/c", "start", url).Start()
+		}
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	}
+	if err != nil {
+		fmt.Printf("Could not open browser automatically: %v\n", err)
+	}
+}
+
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Load the HTML template
 		tmpl, err := template.ParseFiles("index.html")
 		if err != nil {
-			http.Error(w, "Unable to load HTML template: "+err.Error(), http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Critical Error: Unable to load index.html. Ensure you are running the command from the dashboard directory.")
 			return
 		}
+
+		// If GET request, just render the form
 		if r.Method != http.MethodPost {
 			tmpl.Execute(w, nil)
 			return
 		}
 
+		// --- DEPLOYMENT LOGIC ---
+
+		// 1. Read form data
 		name := r.FormValue("name")
 		image := r.FormValue("image")
 		replicas := r.FormValue("replicas")
 		containerPort := r.FormValue("containerPort")
 		servicePort := r.FormValue("servicePort")
+		namespace := r.FormValue("namespace")
 
+		// Default namespace if empty
+		if namespace == "" {
+			namespace = "default"
+		}
+
+		// 2. Build YAML content dynamically
 		yamlContent := fmt.Sprintf(`apiVersion: apps.myapp.io/v1
 kind: SimpleApp
 metadata:
   name: %s
+  namespace: %s
 spec:
   image: %s
   replicas: %s
   containerPort: %s
-  servicePort: %s`, name, image, replicas, containerPort, servicePort)
+  servicePort: %s`, name, namespace, image, replicas, containerPort, servicePort)
 
+		// 3. Save temporary YAML file in the parent directory
 		absPath, _ := filepath.Abs("../" + name + ".yaml")
 
-		err = os.WriteFile(absPath, []byte(yamlContent), 0644)
-		if err != nil {
-			tmpl.Execute(w, PageData{Message: "File write error", Output: err.Error(), Error: true})
+		if err := os.WriteFile(absPath, []byte(yamlContent), 0644); err != nil {
+			tmpl.Execute(w, PageData{Message: "File Write Error", Output: err.Error(), Error: true})
 			return
 		}
-		cmd := exec.Command("kubectl", "apply", "-f", absPath)
-		output, err := cmd.CombinedOutput()
 
+		// 4. Run the "kubectl apply" command
+		cmd := exec.Command("kubectl", "apply", "-f", absPath)
+
+		// Capture output
+		output, err := cmd.CombinedOutput()
+		outputStr := string(output)
+
+		// 5. Smart Error Handling
 		data := PageData{
-			Output: string(output),
+			Output: outputStr,
 		}
 
 		if err != nil {
-			data.Message = "Deployment failed!"
-			data.Error = true
+			// If command failed, check if it's just a non-critical warning
+			// Keywords: created, configured, unchanged
+			if strings.Contains(outputStr, "created") ||
+				strings.Contains(outputStr, "configured") ||
+				strings.Contains(outputStr, "unchanged") ||
+				strings.Contains(outputStr, "unchanged") {
+
+				data.Message = "Operation completed (with warnings)"
+				data.Error = false // Treat as success
+			} else {
+				data.Message = "Critical Deployment Error"
+				data.Error = true
+			}
 		} else {
+			// Clean success
 			data.Message = "Deployment started successfully!"
 			data.Error = false
 		}
 
-		tmpl.Execute(w, data)
+		// 6. Render the result
+		if err := tmpl.Execute(w, data); err != nil {
+			log.Printf("Template execution error: %v", err)
+		}
 	})
 
 	fmt.Println("------------------------------------------------")
-	fmt.Println("Dashboard started!")
-	fmt.Println("Open in browser: http://localhost:3000")
+	fmt.Println("Dashboard started successfully.")
+	fmt.Println("Opening browser at http://localhost:3000")
 	fmt.Println("------------------------------------------------")
+
+	// Open browser in a separate goroutine
+	go func() {
+		time.Sleep(1 * time.Second)
+		openBrowser("http://localhost:3000")
+	}()
+
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }

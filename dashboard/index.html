@@ -1,37 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>SimpleApp Dashboard</title>
+    <title>Platform Deployer</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; padding-top: 50px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; padding-top: 50px; }
         .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 500px; }
         h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: 600; margin-bottom: 8px; color: #555; }
-        input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box; transition: 0.3s; }
-        input:focus { border-color: #3498db; outline: none; }
+        input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+
+        input:invalid { border-color: #e74c3c; }
+        
         button { width: 100%; padding: 15px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         button:hover { background-color: #2980b9; transform: translateY(-2px); }
-        .result { margin-top: 30px; padding: 20px; border-radius: 8px; font-size: 14px; white-space: pre-wrap; background-color: #ecf0f1; border-left: 5px solid #bdc3c7; }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; transform: none; }
+        
+        .result-container { margin-top: 30px; display: none; }
+        .result { padding: 20px; border-radius: 8px; font-size: 14px; white-space: pre-wrap; background-color: #ecf0f1; border-left: 5px solid #bdc3c7; }
         .success { border-left-color: #27ae60; background-color: #e8f8f5; color: #0e6655; }
         .error { border-left-color: #c0392b; background-color: #fdedec; color: #922b21; }
-        .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #aaa; }
+        
+        .spinner { display: none; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin: 0 auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
 <div class="card">
     <h1>Platform Deployer</h1>
-    <form method="POST">
+    
+    <form id="deployForm">
         <div class="form-group">
             <label>Application Name</label>
-            <input type="text" name="name" placeholder="e.g. my-webapp" required>
+            <input type="text" 
+                   name="name" 
+                   placeholder="es. my-webapp" 
+                   pattern="[a-z0-9]([-a-z0-9]*[a-z0-9])?" 
+                   title="Usa solo lettere minuscole, numeri e trattini."
+                   required>
+        </div>
+
+        <div class="form-group">
+            <label>Kubernetes Namespace</label>
+            <input type="text" 
+                   name="namespace" 
+                   value="default" 
+                   pattern="[a-z0-9]([-a-z0-9]*[a-z0-9])?" 
+                   title="Usa solo lettere minuscole e numeri."
+                   required>
         </div>
         
         <div class="form-group">
             <label>Docker Image</label>
-            <input type="text" name="image" placeholder="e.g. nginx:latest" required>
+            <input type="text" name="image" placeholder="es. nginx:latest" required>
         </div>
 
         <div class="form-group">
@@ -42,27 +65,77 @@
         <div style="display: flex; gap: 10px;">
             <div class="form-group" style="flex: 1;">
                 <label>Container Port</label>
-                <input type="number" name="containerPort" value="80" required>
+                <input type="number" name="containerPort" value="80" min="1" max="65535" required>
             </div>
             <div class="form-group" style="flex: 1;">
                 <label>Service Port</label>
-                <input type="number" name="servicePort" value="8080" required>
+                <input type="number" name="servicePort" value="8080" min="1" max="65535" required>
             </div>
         </div>
-
-        <button type="submit">Deploy to Cluster!</button>
+        
+        <button type="submit" id="submitBtn">
+            <span id="btnText">Deploy to Cluster</span>
+            <div class="spinner" id="spinner"></div>
+        </button>
     </form>
 
-    {{if .Message}}
-        <div class="result {{if .Error}}error{{else}}success{{end}}">
-            <strong>{{.Message}}</strong><br>
-            <hr style="opacity: 0.2;">
-            <code>{{.Output}}</code>
-        </div>
-    {{end}}
-
-    <div class="footer">SimpleApp Operator • Internal Developer Platform</div>
+    <div id="resultArea" class="result-container"></div>
+    
 </div>
+
+<script>
+    document.getElementById('deployForm').addEventListener('submit', async function(e) {
+        e.preventDefault(); 
+
+        const btn = document.getElementById('submitBtn');
+        const spinner = document.getElementById('spinner');
+        const btnText = document.getElementById('btnText');
+        const resultArea = document.getElementById('resultArea');
+
+        btn.disabled = true;
+        btnText.style.display = 'none';
+        spinner.style.display = 'block';
+        resultArea.style.display = 'none';
+        resultArea.innerHTML = '';
+
+        try {
+            const formData = new FormData(this);
+            const response = await fetch('/', {
+                method: 'POST',
+                body: formData
+            });
+
+            const text = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const resultDiv = doc.querySelector('.result');
+            
+            if (resultDiv) {
+                resultArea.appendChild(resultDiv);
+                resultArea.style.display = 'block';
+            } else {
+                resultArea.innerHTML = '<div class="result error"><strong>Unexpected error:</strong> No response from server.</div>';
+                resultArea.style.display = 'block';
+            }
+
+        } catch (err) {
+            resultArea.innerHTML = `<div class="result error"><strong>Connection error:</strong> ${err.message}</div>`;
+            resultArea.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btnText.style.display = 'block';
+            spinner.style.display = 'none';
+        }
+    });
+</script>
+
+{{ if .Message }}
+<div class="result {{ if .Error }}error{{ else }}success{{ end }}">
+    <strong>{{ .Message }}</strong><br><br>
+    <pre>{{ .Output }}</pre>
+</div>
+{{ end }}
+
 
 </body>
 </html>
