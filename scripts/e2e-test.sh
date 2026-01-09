@@ -267,8 +267,8 @@ EOF
 
 get_ingress_service() {
     case $INGRESS_TYPE in
-        nginx) echo "ingress-nginx-controller:80" ;;
-        traefik) echo "traefik:80" ;;
+        nginx) echo "ingress-nginx-controller" ;; 
+        traefik) echo "traefik" ;;                
     esac
 }
 
