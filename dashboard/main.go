@@ -27,6 +27,7 @@ func openBrowser(url string) {
 	case "linux":
 		err = exec.Command("xdg-open", url).Start()
 		if err != nil {
+			// Fallback inutile in docker, ma lo lasciamo per compatibilità locale
 			err = exec.Command("cmd.exe", "/c", "start", url).Start()
 		}
 	case "windows":
@@ -42,6 +43,7 @@ func openBrowser(url string) {
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Load the HTML template
+		// NOTA: Dockerfile deve copiare index.html nella stessa cartella dell'eseguibile
 		tmpl, err := template.ParseFiles("index.html")
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -82,11 +84,12 @@ spec:
   containerPort: %s
   servicePort: %s`, name, namespace, image, replicas, containerPort, servicePort)
 
-		// 3. Save temporary YAML file in the parent directory
-		absPath, _ := filepath.Abs("../" + name + ".yaml")
+		// 3. Save temporary YAML file in /tmp directory (writable in container)
+		absPath := filepath.Join("/tmp", name+".yaml")
 
 		if err := os.WriteFile(absPath, []byte(yamlContent), 0644); err != nil {
-			tmpl.Execute(w, PageData{Message: "File Write Error", Output: err.Error(), Error: true})
+			log.Printf("Error writing file to %s: %v", absPath, err)
+			tmpl.Execute(w, PageData{Message: "File Write Error (Permission Denied?)", Output: err.Error(), Error: true})
 			return
 		}
 
@@ -104,10 +107,8 @@ spec:
 
 		if err != nil {
 			// If command failed, check if it's just a non-critical warning
-			// Keywords: created, configured, unchanged
 			if strings.Contains(outputStr, "created") ||
 				strings.Contains(outputStr, "configured") ||
-				strings.Contains(outputStr, "unchanged") ||
 				strings.Contains(outputStr, "unchanged") {
 
 				data.Message = "Operation completed (with warnings)"
