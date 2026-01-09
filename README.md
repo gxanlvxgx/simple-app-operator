@@ -16,6 +16,9 @@ SimpleApp Operator provisions application deployments, services, and ingress obj
   - NGINX: `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml`
   - Traefik: `helm repo add traefik https://traefik.github.io/charts && helm install traefik traefik/traefik --namespace traefik --create-namespace`
 
+Note: Go is only required for local development. The controller image
+is built using a multi-stage Dockerfile and does not require Go at runtime.
+
 ## Deployment Options (Kustomize)
 - Development (NGINX): `kubectl apply -k deploy/kustomize/variants/with-nginx`
 - Development (Traefik): `kubectl apply -k deploy/kustomize/variants/with-traefik`
