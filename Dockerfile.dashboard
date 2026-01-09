@@ -1,0 +1,46 @@
+# Stage 1: Builder
+FROM golang:1.24.6 AS builder
+
+WORKDIR /app
+
+# Download dependencies
+COPY go.mod ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build statically linked binary
+RUN CGO_ENABLED=0 GOOS=linux go build -o dashboard-app ./dashboard/main.go
+
+# Stage 2: Runner
+FROM alpine:3.19
+
+# Install runtime dependencies (curl for downloading kubectl)
+RUN apk add --no-cache curl ca-certificates
+
+# Install kubectl
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
+    chmod +x kubectl && \
+    mv kubectl /usr/local/bin/
+
+# Create non-root user
+RUN addgroup -S dashboard && adduser -S dashboard -G dashboard
+
+# Set up application directory
+WORKDIR /app
+
+# Copy binary and HTML template
+COPY --from=builder /app/dashboard-app .
+COPY --from=builder /app/dashboard/index.html .
+
+# Set permissions
+RUN chmod +x ./dashboard-app && \
+    chown -R dashboard:dashboard /app
+
+# Switch to non-root user
+USER dashboard
+
+EXPOSE 3000
+
+ENTRYPOINT ["./dashboard-app"]
