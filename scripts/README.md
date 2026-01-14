@@ -119,54 +119,35 @@ kubectl port-forward -n traefik svc/traefik 8080:80
 
 ### Dashboard Features
 
-Once in the dashboard, you can:
+Once in the dashboard, you have full lifecycle management capabilities:
 
-1. **Deployment Form:**
-   - Application Name (e.g., `my-webapp`)
-   - Docker Image (e.g., `nginx:latest`)
-   - Replicas
-   - Container Port
-   - Service Port
-   - Kubernetes Namespace
+1. **Deploy Application:**
+   - Fill the form (Name, Image, Replicas, Ports)
+   - Click "Deploy App" to create the Custom Resource
+   - Real-time feedback from the Kubernetes API
 
-2. **Submit:** Click "Deploy to Cluster" to execute:
-   ```yaml
-   apiVersion: apps.myapp.io/v1
-   kind: SimpleApp
-   metadata:
-     name: my-webapp
-     namespace: default
-   spec:
-     image: nginx:latest
-     replicas: 1
-     containerPort: 80
-     servicePort: 80
-   ```
+2. **Monitor Status:**
+   - **Active Applications List:** Automatically fetches all `SimpleApp` resources.
+   - **Real-time Status:** Shows current Pod status (Pending/Running) and Replica count.
+   - **Visual Indicators:** Green badges for healthy apps, yellow for pending.
 
-3. **Result:** Immediate kubectl output displayed
-   - "created" = success
-   - "configured" = already exists
-   - Errors shown if applicable
+3. **Manage Lifecycle:**
+   - **Delete Action:** Remove applications directly from the UI.
+   - This triggers the Operator to clean up all associated resources (Deployment, Service, Ingress).
 
-### Full Flow
+### Full Architecture Flow
 
-```
-Dashboard Form Input
-        ↓
-Generates SimpleApp YAML
-        ↓
-kubectl apply via backend
-        ↓
-Operator Reconciler captures event
-        ↓
-Creates: Deployment + Service + Ingress
-        ↓
-Ingress Controller routes traffic
-        ↓
-Application accessible via browser
-```
-
----
+[ User Interface ]  <--->  [ Go Backend API ]  <--->  [ Kubernetes API Server ]
+       |                           |                            |
+   1. Submits Form            2. Generates CRD             3. Stores Resource
+   4. Clicks Delete           5. Deletes CRD               6. Triggers Cleanup
+       |                           |                            |
+       |                           |                    [ Operator Controller ]
+       |                           |                            |
+    (Updates UI)          (Returns JSON/Logs)      <--- 7. Reconcile Loop
+                                                            - Creates/Updates Deployment
+                                                            - Configures Service
+                                                            - Manages Ingress (Nginx/Traefik)
 
 ## Troubleshooting
 
