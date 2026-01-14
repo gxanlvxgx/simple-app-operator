@@ -38,7 +38,7 @@ var _ = Describe("SimpleApp Controller", func() {
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default", // Adjust as needed for your test namespace
 		}
 		simpleapp := &appsv1.SimpleApp{}
 
@@ -63,7 +63,7 @@ var _ = Describe("SimpleApp Controller", func() {
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
+			// Cleanup the resource instance after each test.
 			resource := &appsv1.SimpleApp{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -82,7 +82,7 @@ var _ = Describe("SimpleApp Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
+			// Add more specific assertions depending on your controller's reconciliation logic.
 			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
 	})
