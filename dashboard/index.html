@@ -1,21 +1,40 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Platform Deployer</title>
+    <title>SimpleApp Dashboard</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; padding-top: 50px; }
-        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 500px; }
-        h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        /* General layout to support two cards in column */
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background-color: #f4f6f9; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding-top: 30px; 
+            padding-bottom: 50px;
+        }
+        
+        .card { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            width: 600px;
+            margin-bottom: 20px; 
+        }
+
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 10px; border-bottom: none; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 30px; font-size: 0.95em; }
+
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: 600; margin-bottom: 8px; color: #555; }
         input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-
         input:invalid { border-color: #e74c3c; }
         
-        button { width: 100%; padding: 15px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:hover { background-color: #2980b9; transform: translateY(-2px); }
-        button:disabled { background-color: #bdc3c7; cursor: not-allowed; transform: none; }
+        button.btn-deploy { width: 100%; padding: 15px; background-color: #3498db; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button.btn-deploy:hover { background-color: #2980b9; transform: translateY(-2px); }
+        button.btn-deploy:disabled { background-color: #bdc3c7; cursor: not-allowed; transform: none; }
         
         .result-container { margin-top: 30px; display: none; }
         .result { padding: 20px; border-radius: 8px; font-size: 14px; white-space: pre-wrap; background-color: #ecf0f1; border-left: 5px solid #bdc3c7; max-height: 400px; overflow-y: auto; word-wrap: break-word; overflow-x: auto; }
@@ -24,66 +43,104 @@
         
         .spinner { display: none; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin: 0 auto; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        .app-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; table-layout: fixed; }
+        .app-table th { text-align: left; padding: 12px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef; color: #495057; font-weight: 600; }
+        .app-table td { padding: 12px; border-bottom: 1px solid #e9ecef; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; }
+        
+        .btn-delete { 
+            background-color: white; 
+            color: #e74c3c; 
+            border: 1px solid #e74c3c; 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s;
+        }
+        .btn-delete:hover { background-color: #e74c3c; color: white; }
+
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75em; font-weight: bold; text-transform: uppercase; }
+        .status-running { background-color: #d4edda; color: #155724; }
+        .status-pending { background-color: #fff3cd; color: #856404; }
+        
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .btn-refresh { background: none; border: none; color: #3498db; cursor: pointer; font-size: 0.9rem; text-decoration: underline; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h1>Platform Deployer</h1>
-    
-    <form id="deployForm">
-        <div class="form-group">
-            <label>Application Name</label>
-            <input type="text" 
-                   name="name" 
-                   placeholder="es. my-webapp" 
-                   pattern="[a-z0-9]([-a-z0-9]*[a-z0-9])?" 
-                   title="Usa solo lettere minuscole, numeri e trattini."
-                   required>
-        </div>
-
-        <div class="form-group">
-            <label>Kubernetes Namespace</label>
-            <input type="text" 
-                   name="namespace" 
-                   value="default" 
-                   pattern="[a-z0-9]([-a-z0-9]*[a-z0-9])?" 
-                   title="Usa solo lettere minuscole e numeri."
-                   required>
-        </div>
+    <div class="card">
+        <h1>SimpleApp Dashboard</h1>
+        <p class="subtitle">Manage your application lifecycle</p>
         
-        <div class="form-group">
-            <label>Docker Image</label>
-            <input type="text" name="image" placeholder="es. nginx:latest" required>
-        </div>
-
-        <div class="form-group">
-            <label>Number of Replicas</label>
-            <input type="number" name="replicas" value="1" min="1" required>
-        </div>
-
-        <div style="display: flex; gap: 10px;">
-            <div class="form-group" style="flex: 1;">
-                <label>Container Port</label>
-                <input type="number" name="containerPort" value="80" min="1" max="65535" required>
+        <form id="deployForm">
+            <div class="form-group">
+                <label>Application Name</label>
+                <input type="text" name="name" placeholder="e.g. my-webapp" pattern="[a-z0-9]([-a-z0-9]*[a-z0-9])?" title="Use only lowercase letters, numbers and hyphens." required>
             </div>
-            <div class="form-group" style="flex: 1;">
-                <label>Service Port</label>
-                <input type="number" name="servicePort" value="8080" min="1" max="65535" required>
-            </div>
-        </div>
-        
-        <button type="submit" id="submitBtn">
-            <span id="btnText">Deploy to Cluster</span>
-            <div class="spinner" id="spinner"></div>
-        </button>
-    </form>
 
-    <div id="resultArea" class="result-container"></div>
-    
-</div>
+            <div class="form-group">
+                <label>Kubernetes Namespace</label>
+                <input type="text" name="namespace" value="default" pattern="[a-z0-9]([-a-z0-9]*[a-z0-9])?" title="Use only lowercase letters and numbers." required>
+            </div>
+            
+            <div class="form-group">
+                <label>Docker Image</label>
+                <input type="text" name="image" placeholder="e.g. nginx:latest" required>
+            </div>
+
+            <div class="form-group">
+                <label>Replicas</label>
+                <input type="number" name="replicas" value="1" min="1" required>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Container Port</label>
+                    <input type="number" name="containerPort" value="80" min="1" max="65535" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Service Port</label>
+                    <input type="number" name="servicePort" value="8080" min="1" max="65535" required>
+                </div>
+            </div>
+            
+            <button type="submit" id="submitBtn" class="btn-deploy">
+                <span id="btnText">Deploy App</span>
+                <div class="spinner" id="spinner"></div>
+            </button>
+        </form>
+
+        <div id="resultArea" class="result-container"></div>
+    </div>
+
+    <div class="card">
+        <div class="header-row">
+            <h2 style="margin:0; font-size: 1.3rem; color: #2c3e50;">Active Applications</h2>
+            <button class="btn-refresh" onclick="fetchApps()">Refresh List</button>
+        </div>
+
+        <table class="app-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Namespace</th>
+                    <th>Image</th>
+                    <th>Replicas</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="app-list-body">
+                </tbody>
+        </table>
+        <div id="loading-msg" style="text-align:center; padding: 20px; color:#777; display:none;">Loading...</div>
+    </div>
 
 <script>
+    // Form handling (creation)
     document.getElementById('deployForm').addEventListener('submit', async function(e) {
         e.preventDefault(); 
 
@@ -111,15 +168,22 @@
             const resultDiv = doc.querySelector('.result');
             
             if (resultDiv) {
+                resultDiv.style.display = 'block';
                 resultArea.appendChild(resultDiv);
                 resultArea.style.display = 'block';
+                
+                // If deploy succeeds, refresh the list
+                if(resultDiv.classList.contains('success')) {
+                    // Wait 1 second to give K8s time to create the resource
+                    setTimeout(fetchApps, 1000); 
+                }
             } else {
-                resultArea.innerHTML = '<div class="result error"><strong>Unexpected error:</strong> No response from server.</div>';
+                resultArea.innerHTML = '<div class="result error"><strong>Error:</strong> Unexpected server response.</div>';
                 resultArea.style.display = 'block';
             }
 
         } catch (err) {
-            resultArea.innerHTML = `<div class="result error"><strong>Connection error:</strong> ${err.message}</div>`;
+            resultArea.innerHTML = `<div class="result error"><strong>Connection Error:</strong> ${err.message}</div>`;
             resultArea.style.display = 'block';
         } finally {
             btn.disabled = false;
@@ -127,15 +191,102 @@
             spinner.style.display = 'none';
         }
     });
+
+    // List management (display and deletion)
+    function fetchApps() {
+        const tbody = document.getElementById('app-list-body');
+        const loader = document.getElementById('loading-msg');
+        
+        tbody.innerHTML = '';
+        loader.style.display = 'block';
+
+        fetch('/api/list')
+            .then(res => {
+                if(!res.ok) throw new Error("API Error");
+                return res.json();
+            })
+            .then(data => {
+                loader.style.display = 'none';
+                
+                if (!data.items || data.items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#999; padding:20px;">No SimpleApp applications found.</td></tr>';
+                    return;
+                }
+
+                data.items.forEach(app => {
+                    const name = app.metadata.name;
+                    const ns = app.metadata.namespace;
+                    const img = app.spec.image;
+                    const replicas = app.spec.replicas;
+                    
+                    let status = "Running";
+                    if (app.status && app.status.podStatus) {
+                        status = app.status.podStatus;
+                    }
+                    
+                    const statusClass = (status === 'Running') ? 'status-running' : 'status-pending';
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${name}</strong></td>
+                        <td>${ns}</td>
+                        <td style="font-family:monospace; color:#555;">${img}</td>
+                        <td>${replicas}</td>
+                        <td><span class="status-badge ${statusClass}">${status}</span></td>
+                        <td style="text-align: right;">
+                            <button class="btn-delete" onclick="deleteApp('${name}', '${ns}')">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            })
+            .catch(err => {
+                loader.style.display = 'none';
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#999;">Unable to load list (Backend API unavailable).</td></tr>';
+            });
+    }
+
+    function deleteApp(name, namespace) {
+        if(!confirm(`Are you sure you want to delete the application "${name}"?\nThis action will also delete associated Deployment, Service and Ingress.`)) {
+            return;
+        }
+
+        fetch(`/api/delete?name=${name}&namespace=${namespace}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                fetchApps(); 
+            } else {
+                response.text().then(text => alert("Error during deletion: " + text));
+            }
+        })
+        .catch(error => alert("Network error: " + error));
+    }
+
+    // Load app list on page load
+    document.addEventListener('DOMContentLoaded', fetchApps);
+
 </script>
 
 {{ if .Message }}
-<div class="result {{ if .Error }}error{{ else }}success{{ end }}">
+<div id="server-response" class="result {{ if .Error }}error{{ else }}success{{ end }}" style="display:none;">
     <strong>{{ .Message }}</strong><br><br>
     <pre>{{ .Output }}</pre>
 </div>
+<script>
+    // If page was reloaded by server with a message, display it in the form
+    const serverResponse = document.getElementById('server-response');
+    if(serverResponse) {
+        const area = document.getElementById('resultArea');
+        area.innerHTML = '';
+        area.appendChild(serverResponse);
+        area.style.display = 'block';
+        serverResponse.style.display = 'block';
+    }
+</script>
 {{ end }}
-
 
 </body>
 </html>
