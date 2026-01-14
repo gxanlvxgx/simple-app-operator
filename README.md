@@ -4,7 +4,7 @@ SimpleApp Operator provisions application deployments, services, and ingress obj
 
 ## Architecture
 - Controller (`simple-app-operator-system` namespace): reconciles SimpleApp, creates Deployment/Service/Ingress with `ingressClassName` set via the `INGRESS_CLASS_NAME` environment variable.
-- Dashboard (`simple-app-dashboard` namespace): thin UI for creating and viewing SimpleApp resources; uses a dedicated ClusterRole with SimpleApp-only permissions.
+- Dashboard (`simple-app-dashboard` namespace): Web UI for full lifecycle management (Create, List, Real-time Status, Delete) of SimpleApp resources; uses a dedicated ClusterRole with SimpleApp-only permissions.
 - Ingress Controller: not managed by this project; install NGINX or Traefik separately.
 
 ## Prerequisites
