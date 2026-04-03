@@ -21,7 +21,12 @@
             border-radius: 12px; 
             box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
             width: 600px;
-            margin-bottom: 20px; 
+            margin-bottom: 14px; 
+        }
+
+        .card.list-card {
+            width: 920px;
+            max-width: calc(100vw - 80px);
         }
 
         h1 { color: #2c3e50; text-align: center; margin-bottom: 10px; border-bottom: none; }
@@ -44,26 +49,104 @@
         .spinner { display: none; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; margin: 0 auto; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .app-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; table-layout: fixed; }
-        .app-table th { text-align: left; padding: 12px; background-color: #f8f9fa; border-bottom: 2px solid #e9ecef; color: #495057; font-weight: 600; }
-        .app-table td { padding: 12px; border-bottom: 1px solid #e9ecef; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; }
+        .app-grid {
+            margin-top: 14px;
+        }
+
+        .app-grid-head,
+        .app-row {
+            display: grid;
+            grid-template-columns: minmax(120px, 1.1fr) minmax(100px, 0.9fr) minmax(170px, 1.55fr) 84px 128px 92px;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .app-grid-head {
+            padding: 0 10px 12px 10px;
+            color: #637085;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .app-row {
+            background: #fbfcfe;
+            border: 1px solid #e7ebf2;
+            border-radius: 14px;
+            padding: 16px 12px;
+            margin-bottom: 10px;
+            font-size: 0.96rem;
+            box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+
+        .app-row:hover {
+            transform: translateY(-1px);
+            border-color: #d8deea;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+        }
+
+        .app-row .name {
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .app-row .namespace {
+            color: #64748b;
+            font-size: 0.92rem;
+        }
+
+        .app-image {
+            display: inline-block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: monospace;
+            font-size: 0.92rem;
+            color: #334155;
+            background: #eef2f7;
+            border: 1px solid #dde4ee;
+            border-radius: 10px;
+            padding: 7px 10px;
+        }
+
+        .replicas {
+            font-variant-numeric: tabular-nums;
+            color: #334155;
+            font-weight: 600;
+        }
         
         .btn-delete { 
             background-color: white; 
             color: #e74c3c; 
             border: 1px solid #e74c3c; 
-            padding: 6px 12px; 
-            border-radius: 6px; 
-            font-size: 14px; 
-            font-weight: 600; 
+            padding: 7px 13px; 
+            border-radius: 999px; 
+            font-size: 13px; 
+            font-weight: 700; 
             cursor: pointer; 
             transition: all 0.2s;
         }
         .btn-delete:hover { background-color: #e74c3c; color: white; }
 
-        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75em; font-weight: bold; text-transform: uppercase; }
-        .status-running { background-color: #d4edda; color: #155724; }
-        .status-pending { background-color: #fff3cd; color: #856404; }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 0.72em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            background: transparent;
+            border: 1px solid currentColor;
+        }
+        .status-running { color: #1f7a3e; }
+        .status-pending { color: #8a6500; }
         
         .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .btn-refresh { background: none; border: none; color: #3498db; cursor: pointer; font-size: 0.9rem; text-decoration: underline; }
@@ -116,26 +199,21 @@
         <div id="resultArea" class="result-container"></div>
     </div>
 
-    <div class="card">
+    <div class="card list-card">
         <div class="header-row">
             <h2 style="margin:0; font-size: 1.3rem; color: #2c3e50;">Active Applications</h2>
             <button class="btn-refresh" onclick="fetchApps()">Refresh List</button>
         </div>
 
-        <table class="app-table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Namespace</th>
-                    <th>Image</th>
-                    <th>Replicas</th>
-                    <th>Status</th>
-                    <th style="text-align: right;">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="app-list-body">
-                </tbody>
-        </table>
+        <div class="app-grid-head">
+            <div>Name</div>
+            <div>Namespace</div>
+            <div>Image</div>
+            <div>Replicas</div>
+            <div>Status</div>
+            <div style="text-align: right;">Actions</div>
+        </div>
+        <div class="app-grid" id="app-list-body"></div>
         <div id="loading-msg" style="text-align:center; padding: 20px; color:#777; display:none;">Loading...</div>
     </div>
 
@@ -209,7 +287,7 @@
                 loader.style.display = 'none';
                 
                 if (!data.items || data.items.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#999; padding:20px;">No SimpleApp applications found.</td></tr>';
+                    tbody.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">No SimpleApp applications found.</div>';
                     return;
                 }
 
@@ -217,33 +295,34 @@
                     const name = app.metadata.name;
                     const ns = app.metadata.namespace;
                     const img = app.spec.image;
-                    const replicas = app.spec.replicas;
-                    
-                    let status = "Running";
-                    if (app.status && app.status.podStatus) {
-                        status = app.status.podStatus;
-                    }
-                    
-                    const statusClass = (status === 'Running') ? 'status-running' : 'status-pending';
+                    const replicas = Number(app.spec.replicas ?? 0);
+                    const readyReplicas = Number(app.status?.readyReplicas ?? 0);
+                    const isHealthy = replicas > 0 && readyReplicas >= replicas;
 
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td><strong>${name}</strong></td>
-                        <td>${ns}</td>
-                        <td style="font-family:monospace; color:#555;">${img}</td>
-                        <td>${replicas}</td>
-                        <td><span class="status-badge ${statusClass}">${status}</span></td>
-                        <td style="text-align: right;">
+                    const status = isHealthy
+                        ? `Healthy ${readyReplicas}/${replicas}`
+                        : `Degraded ${readyReplicas}/${replicas}`;
+                    const statusClass = isHealthy ? 'status-running' : 'status-pending';
+
+                    const row = document.createElement('div');
+                    row.className = 'app-row';
+                    row.innerHTML = `
+                        <div class="name">${name}</div>
+                        <div class="namespace">${ns}</div>
+                        <div title="${img}"><span class="app-image">${img}</span></div>
+                        <div class="replicas">${replicas}</div>
+                        <div><span class="status-badge ${statusClass}">${status}</span></div>
+                        <div style="text-align: right;">
                             <button class="btn-delete" onclick="deleteApp('${name}', '${ns}')">Delete</button>
-                        </td>
+                        </div>
                     `;
-                    tbody.appendChild(tr);
+                    tbody.appendChild(row);
                 });
             })
             .catch(err => {
                 loader.style.display = 'none';
                 console.error(err);
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#999;">Unable to load list (Backend API unavailable).</td></tr>';
+                tbody.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">Unable to load list (Backend API unavailable).</div>';
             });
     }
 
